@@ -1,0 +1,72 @@
+# Services Included in the docker compose:
+# 1. Redis (Async message broker, using workzeug)
+# 2. Postgres (Metadata DB)
+# 3. Superset
+# 4. Celery Worker (Async task queue)
+# 5. Celery flower (Monitoring)
+
+version: '3'
+services:
+  redis:
+    image: "redis:${REDIS_TAG}"
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis:/data
+  postgres:
+    image: "postgres:${POSTGRES_TAG}"
+    restart: always
+    environment:
+      POSTGRES_DB: superset
+      POSTGRES_PASSWORD: superset
+      POSTGRES_USER: superset
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+  superset:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: "#{IMAGE_NAME}"
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      MAPBOX_API_KEY: ${MAPBOX_API_KEY}
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./superset:/etc/superset
+  worker:
+    image: amancevice/superset
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - superset
+    environment:
+      MAPBOX_API_KEY: ${MAPBOX_API_KEY}
+    volumes:
+      - ./superset:/etc/superset
+    command: celery worker
+  flower:
+    image: amancevice/superset
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - superset
+      - worker
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./superset:/etc/superset
+    command: celery flower --app=superset.tasks.celery_app:app
+volumes:
+  postgres:
+    external: false
+  redis:
+    external: false
