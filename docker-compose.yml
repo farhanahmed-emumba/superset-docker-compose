@@ -29,7 +29,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: "#{IMAGE_NAME}"
+    image: "${IMAGE_NAME}"
     restart: always
     depends_on:
       - postgres
